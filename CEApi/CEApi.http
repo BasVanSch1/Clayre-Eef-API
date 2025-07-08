@@ -1,0 +1,6 @@
+@CEApi_HostAddress = http://localhost:5012
+
+GET {{CEApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
