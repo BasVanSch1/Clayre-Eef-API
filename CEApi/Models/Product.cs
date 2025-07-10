@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace CEApi.Models
 {
@@ -6,9 +7,11 @@ namespace CEApi.Models
     public class Product
     {
         public string ProductCode { get; set; }
+        [MaxLength(13)]
+        public string EanCode { get; set; }
         public string Description { get; set; }
-        public string EAN { get; set; }
+        [Precision(14,2)]
         public double Price { get; set; }
-        public string ImageLink { get; set; }
+        public string ImageUrl { get; set; }
     }
 }

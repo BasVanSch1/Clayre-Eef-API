@@ -9,6 +9,7 @@ namespace CEApi
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
             builder.Services.AddDbContext<MsSqlDatabaseContext>(options =>
             {
@@ -18,6 +19,17 @@ namespace CEApi
             builder.Services.AddControllers();
             builder.Services.AddOpenApi();
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(name: MyAllowSpecificOrigins, policy =>
+                {
+                    policy.WithOrigins(
+                        "http://localhost:5173")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
@@ -25,8 +37,8 @@ namespace CEApi
                 app.MapOpenApi();
             }
 
-            app.UseHttpsRedirection();
-
+            //app.UseHttpsRedirection();
+            app.UseCors(MyAllowSpecificOrigins);
             app.UseAuthorization();
 
             app.MapControllers();
