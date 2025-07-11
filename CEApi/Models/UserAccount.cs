@@ -3,6 +3,8 @@
 namespace CEApi.Models
 {
     [PrimaryKey(nameof(userId))]
+    [Index(nameof(userName), IsUnique = true)]
+    [Index(nameof(email), IsUnique = true)]
     public class UserAccount
     {
         public string userId { get; set; }
