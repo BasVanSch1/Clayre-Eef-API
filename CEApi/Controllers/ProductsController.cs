@@ -30,10 +30,23 @@ namespace CEApi.Controllers
 
         // GET: api/Products/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(string id)
+        public async Task<ActionResult<Product>> GetProductByProductCode(string id)
         {
             var product = await _context.Products.FindAsync(id);
 
+            if (product == null)
+            {
+                return NotFound();
+            }
+
+            return product;
+        }
+
+        // GET: api/Products/Ean/{ean}
+        [HttpGet("Ean/{ean}")]
+        public async Task<ActionResult<Product>> GetProductByEan(string ean)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.EanCode == ean);
             if (product == null)
             {
                 return NotFound();
