@@ -45,7 +45,7 @@ namespace CEApi.Migrations
 
                     b.HasKey("ProductCode");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("CEApi.Models.UserAccount", b =>
@@ -82,7 +82,7 @@ namespace CEApi.Migrations
                     b.HasIndex("userName")
                         .IsUnique();
 
-                    b.ToTable("UserAccounts");
+                    b.ToTable("UserAccounts", (string)null);
                 });
 #pragma warning restore 612, 618
         }

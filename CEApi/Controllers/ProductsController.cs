@@ -43,7 +43,7 @@ namespace CEApi.Controllers
         }
 
         // GET: api/Products/Ean/{ean}
-        [HttpGet("Ean/{ean}")]
+        [HttpGet("EAN/{ean}")]
         public async Task<ActionResult<Product>> GetProductByEan(string ean)
         {
             var product = await _context.Products.FirstOrDefaultAsync(p => p.EanCode == ean);

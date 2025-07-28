@@ -24,7 +24,8 @@ namespace CEApi
                 options.AddPolicy(name: MyAllowSpecificOrigins, policy =>
                 {
                     policy.WithOrigins(
-                        "http://localhost:5173")
+                        "http://localhost:5173",
+                        "https://prijzencheck.clayre-eef.com")
                         .AllowAnyHeader()
                         .AllowAnyMethod();
                 });
@@ -37,7 +38,7 @@ namespace CEApi
                 app.MapOpenApi();
             }
 
-            //app.UseHttpsRedirection();
+            //app.UseHttpsRedirection(); // the api is for internal use only at the moment, so I won't bother with enforcing HTTPS
             app.UseCors(MyAllowSpecificOrigins);
             app.UseAuthorization();
 

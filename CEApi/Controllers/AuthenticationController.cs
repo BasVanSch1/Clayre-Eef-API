@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CEApi.Data;
 using CEApi.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CEApi.Controllers
 {
@@ -32,12 +33,14 @@ namespace CEApi.Controllers
                 return NotFound();
             }
 
+            userAccount.passwordHash = null;
+
             return userAccount;
         }
 
         // PUT: api/Authentication/edit/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("/edit/{id}")]
+        [HttpPut("edit/{id}")]
         public async Task<IActionResult> PutUserAccount(string id, UserAccount userAccount)
         {
             if (id != userAccount.userId)
@@ -53,7 +56,7 @@ namespace CEApi.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!UserAccountExists(id))
+                if (!UserAccountIdExists(id))
                 {
                     return NotFound();
                 }
@@ -68,26 +71,39 @@ namespace CEApi.Controllers
 
         // POST: api/Authentication/create
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("/create")]
-        public async Task<ActionResult<UserAccount>> PostUserAccount(UserAccount userAccount)
+        [HttpPost("create")]
+        public async Task<ActionResult<UserAccount>> CreateUserAccount(UserAccount userAccount)
         {
+            if (userAccount == null || string.IsNullOrEmpty(userAccount.userName) || string.IsNullOrEmpty(userAccount.email) || string.IsNullOrEmpty(userAccount.passwordHash))
+            {
+                return BadRequest("Invalid user account data.");
+            }
+
+            if (UserAccountUsernameExists(userAccount.userName))
+            {
+                return Conflict(new { code = 409, message = "Username already exists" });
+            }
+
+            if (UserAccountEmailExists(userAccount.email))
+            {
+                return Conflict(new { code = 409, message = "Email already exists" });
+            }
+
+            userAccount.userId = Guid.NewGuid().ToString();
+            userAccount.passwordHash = BCrypt.Net.BCrypt.HashPassword(userAccount.passwordHash);
+            userAccount.displayName ??= userAccount.userName;
+
             _context.UserAccounts.Add(userAccount);
             try
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch
             {
-                if (UserAccountExists(userAccount.userId))
-                {
-                    return Conflict();
-                }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
 
+            userAccount.passwordHash = null;
             return CreatedAtAction("GetUserAccount", new { id = userAccount.userId }, userAccount);
         }
 
@@ -107,9 +123,47 @@ namespace CEApi.Controllers
             return NoContent();
         }
 
-        private bool UserAccountExists(string id)
+        [HttpPost("login")]
+        public async Task<ActionResult<UserAccount>> Login(LoginData loginData)
         {
-            return _context.UserAccounts.Any(e => e.userId == id);
+            if (string.IsNullOrEmpty(loginData.userName) || string.IsNullOrEmpty(loginData.password))
+            {
+                return BadRequest("Invalid login data.");
+            }
+
+            // Normalize the username to lower case and trim whitespace
+            loginData.userName = loginData.userName.ToLower().Trim();
+
+            var existingUser = await _context.UserAccounts
+            .FirstOrDefaultAsync(u => u.userName.ToLower() == loginData.userName);
+
+            if (existingUser == null)
+            {
+                return NotFound();
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(loginData.password, existingUser.passwordHash))
+            {
+                return Unauthorized();
+            }
+
+            existingUser.passwordHash = null;
+            return Ok(existingUser);
+        }
+
+        private bool UserAccountIdExists(string id)
+        {
+            return _context.UserAccounts.Any(e => e.userId == id );
+        }
+
+        private bool UserAccountUsernameExists(string username)
+        {
+            return _context.UserAccounts.Any(e => e.userName.ToLower() == username.ToLower());
+        }
+
+        private bool UserAccountEmailExists(string email)
+        {
+            return _context.UserAccounts.Any(e => e.email.ToLower() == email.ToLower());
         }
     }
 }

@@ -7,7 +7,7 @@ namespace CEApi.Models
     [Index(nameof(email), IsUnique = true)]
     public class UserAccount
     {
-        public string userId { get; set; }
+        public string? userId { get; set; }
         public string userName { get; set; }
         public string? displayName { get; set; }
         public string email { get; set; }
