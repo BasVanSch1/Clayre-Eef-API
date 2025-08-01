@@ -12,6 +12,6 @@ namespace CEApi.Models
         public string? displayName { get; set; }
         public string email { get; set; }
         public string passwordHash { get; set; }
-        public string? Roles { get; set; }
+        public UserRole[]? Roles { get; set; }
     }
 }
