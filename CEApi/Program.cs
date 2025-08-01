@@ -13,10 +13,10 @@ namespace CEApi
 
             builder.Services.AddDbContext<MsSqlDatabaseContext>(options =>
             {
-                options.UseSqlServer(builder.Configuration.GetConnectionString("Prices"));
+                options.UseSqlServer(builder.Configuration.GetConnectionString("PricesLocal"));
             });
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers().AddNewtonsoftJson();
             builder.Services.AddOpenApi();
 
             builder.Services.AddCors(options =>

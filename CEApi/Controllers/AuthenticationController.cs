@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CEApi.Data;
 using CEApi.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.JsonPatch;
 
 namespace CEApi.Controllers
 {
@@ -38,35 +33,50 @@ namespace CEApi.Controllers
             return userAccount;
         }
 
-        // PUT: api/Authentication/edit/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("edit/{id}")]
-        public async Task<IActionResult> PutUserAccount(string id, UserAccount userAccount)
+        [HttpPatch("edit/{id}")]
+        public async Task<IActionResult> PatchUserAccount(string id, [FromBody] JsonPatchDocument<UserAccount> patchDoc)
         {
-            if (id != userAccount.userId)
+            if (patchDoc == null)
             {
-                return BadRequest();
+                return BadRequest("Invalid patch document.");
             }
 
-            _context.Entry(userAccount).State = EntityState.Modified;
+            var user = await _context.UserAccounts.FindAsync(id);
+
+            if (user == null)
+            {
+                return NotFound($"User with ID {id} not found.");
+            }
+
+            patchDoc.ApplyTo(user);
+
+            if (patchDoc.Operations.Any(op => op.path.Equals("/passwordHash", StringComparison.OrdinalIgnoreCase)))
+            {
+                user.passwordHash = BCrypt.Net.BCrypt.HashPassword(user.passwordHash);
+            }
+
+            if (user.displayName == null)
+            {
+                user.displayName = user.userName;
+            }
+
+            if (!TryValidateModel(user))
+            {
+                return BadRequest(ModelState);
+            }
 
             try
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (Exception)
             {
-                if (!UserAccountIdExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return StatusCode(500, "An error occurred while updating the user account.");
             }
 
-            return NoContent();
+
+            user.passwordHash = null;
+            return Ok(user);
         }
 
         // POST: api/Authentication/create
@@ -100,7 +110,7 @@ namespace CEApi.Controllers
             }
             catch
             {
-                throw;
+                return StatusCode(500, "An error occurred while updating the user account.");
             }
 
             userAccount.passwordHash = null;
