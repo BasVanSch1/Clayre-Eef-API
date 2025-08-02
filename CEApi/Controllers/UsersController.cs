@@ -194,7 +194,6 @@ namespace CEApi.Controllers
                 userAccount.Roles = validRoles;
             }
 
-
             userAccount.userId = Guid.NewGuid().ToString();
             userAccount.passwordHash = BCrypt.Net.BCrypt.HashPassword(userAccount.passwordHash);
             userAccount.displayName ??= userAccount.userName;
