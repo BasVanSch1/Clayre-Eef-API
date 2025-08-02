@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using CEApi.Data;
 using CEApi.Models;
-using Microsoft.AspNetCore.JsonPatch;
 
 namespace CEApi.Controllers
 {

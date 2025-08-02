@@ -42,7 +42,7 @@ namespace CEApi.Controllers
             return product;
         }
 
-        // GET: api/Products/Ean/{ean}
+        // GET: api/Products/EAN/{ean}
         [HttpGet("EAN/{ean}")]
         public async Task<ActionResult<Product>> GetProductByEan(string ean)
         {

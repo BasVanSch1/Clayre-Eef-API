@@ -14,5 +14,18 @@ namespace CEApi.Data
             : base(options)
         {
         }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<UserRole>()
+                .HasMany<RolePermission>(ur => ur.Permissions)
+                .WithMany();
+
+            modelBuilder.Entity<UserAccount>()
+                .HasMany<UserRole>(ua => ua.Roles)
+                .WithMany();
+
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }
