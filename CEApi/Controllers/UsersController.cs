@@ -164,6 +164,37 @@ namespace CEApi.Controllers
                 return Conflict(new { code = 409, message = "Email already exists" });
             }
 
+            if (userAccount.Roles != null && userAccount.Roles.Count > 0)
+            {
+                IList<string> invalidRoles = [];
+                IList<UserRole> validRoles = [];
+                foreach (var role in userAccount.Roles)
+                {
+                    if (role.Name == null)
+                    {
+                        return BadRequest("Invalid role data in user account.");
+                    }
+
+                    var existingRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name.ToLower() == role.Name.ToLower());
+                    if (existingRole != null)
+                    {
+                        validRoles.Add(existingRole);
+                    }
+                    else
+                    {
+                        invalidRoles.Add($"Role with the name {role.Name} does not exist.");
+                    }
+                }
+
+                if (invalidRoles.Count > 0)
+                {
+                    return BadRequest(new { code = 400, message = "Invalid roles", details = invalidRoles });
+                }
+
+                userAccount.Roles = validRoles;
+            }
+
+
             userAccount.userId = Guid.NewGuid().ToString();
             userAccount.passwordHash = BCrypt.Net.BCrypt.HashPassword(userAccount.passwordHash);
             userAccount.displayName ??= userAccount.userName;
