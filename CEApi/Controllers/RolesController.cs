@@ -9,6 +9,7 @@ using CEApi.Data;
 using CEApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using NuGet.Packaging;
+using Microsoft.AspNetCore.JsonPatch;
 
 namespace CEApi.Controllers
 {
@@ -50,17 +51,81 @@ namespace CEApi.Controllers
             return userRole;
         }
 
-        // PUT: api/Roles/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutUserRole(string id, UserRole userRole)
+        // PATCH: api/Roles/{search}
+        [HttpPatch("{search}")]
+        public async Task<ActionResult<UserRole>> PatchRole(string search, [FromBody] JsonPatchDocument<UserRole> patchDoc)
         {
-            if (id != userRole.Id)
+            if (patchDoc == null)
             {
-                return BadRequest();
+                return BadRequest("Invalid patch document.");
             }
 
-            _context.Entry(userRole).State = EntityState.Modified;
+            search = search.Trim().ToLower();
+            var userRole = await _context.UserRoles
+                .Include(r => r.Permissions)
+                .FirstOrDefaultAsync(r => r.Id == search || r.Name.ToLower() == search);
+
+            if (userRole == null)
+            {
+                return NotFound();
+            }
+
+            var currentPermissions = userRole.Permissions ?? [];
+
+            patchDoc.ApplyTo(userRole, ModelState);
+
+            if (patchDoc.Operations.Any(op => op.path.Equals("/Id", StringComparison.OrdinalIgnoreCase)))
+            {
+                return BadRequest(new { code = 400, message = "Role ID cannot be changed." });
+            }
+
+            if (patchDoc.Operations.Any(op => op.path.Equals("/Permissions", StringComparison.OrdinalIgnoreCase))) {
+                IList<string> invalidPermissions = [];
+                IList<RolePermission> validPermissions = currentPermissions;
+
+                foreach (var op in patchDoc.Operations)
+                {
+                    if (op.op.Equals("add", StringComparison.OrdinalIgnoreCase) && op.path.Equals("/Permissions", StringComparison.OrdinalIgnoreCase))
+                    {
+                        (validPermissions, invalidPermissions) = await AddPermissionsToList(currentPermissions, userRole.Permissions ?? []);
+                    } 
+                    else if (op.op.Equals("remove", StringComparison.OrdinalIgnoreCase) && op.path.Equals("/Permissions", StringComparison.OrdinalIgnoreCase))
+                    {
+                        IList<RolePermission> permissionsToRemove = [];
+
+                        // convert the permissions to remove from the patch document to RolePermission objects
+                        foreach (var obj in op.value as IEnumerable<object> ?? [])
+                        {
+                            if (obj is Newtonsoft.Json.Linq.JObject jObj)
+                            {
+                                var permName = jObj["name"]?.ToString();
+                                if (!string.IsNullOrEmpty(permName))
+                                {
+                                    permissionsToRemove.Add(new RolePermission { Name = permName });
+                                }
+                            }
+                        }
+
+                        (validPermissions, invalidPermissions) = RemovePermissionsFromList(validPermissions, permissionsToRemove);
+                    } 
+                    else if (op.op.Equals("replace", StringComparison.OrdinalIgnoreCase) && op.path.Equals("/Permissions", StringComparison.OrdinalIgnoreCase))
+                    {
+                        (validPermissions, invalidPermissions) = await AddPermissionsToList([], userRole.Permissions ?? []);
+                    }
+                }
+
+                if (invalidPermissions.Count > 0)
+                {
+                    return BadRequest(new { code = 400, message = "Invalid permissions", details = invalidPermissions });
+                }
+
+                userRole.Permissions = validPermissions;
+            }
+
+            if (!TryValidateModel(userRole))
+            {
+                return BadRequest(ModelState);
+            }
 
             try
             {
@@ -68,7 +133,7 @@ namespace CEApi.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!RoleExists(id))
+                if (!RoleExists(userRole.Id!) || RoleExists(userRole.Name))
                 {
                     return NotFound();
                 }
@@ -77,8 +142,7 @@ namespace CEApi.Controllers
                     throw;
                 }
             }
-
-            return NoContent();
+            return CreatedAtAction("GetRole", new { search = userRole.Id }, userRole);
         }
 
         // POST: api/Roles
@@ -146,7 +210,7 @@ namespace CEApi.Controllers
             }
             catch (DbUpdateException)
             {
-                if (RoleExists(userRole.Id, userRole.Name))
+                if (RoleExists(userRole.Id) || RoleExists(userRole.Name))
                 {
                     return Conflict();
                 }
@@ -156,7 +220,7 @@ namespace CEApi.Controllers
                 }
             }
 
-            return CreatedAtAction("GetRole", new { id = userRole.Id }, userRole);
+            return CreatedAtAction("GetRole", new { search = userRole.Id }, userRole);
         }
 
         // DELETE: api/Roles/5
@@ -214,7 +278,7 @@ namespace CEApi.Controllers
             }
             catch (DbUpdateException)
             {
-                if (PermissionExists(rolePermission.Id, rolePermission.Name))
+                if (PermissionExists(rolePermission.Name) || PermissionExists(rolePermission.Id))
                 {
                     return Conflict();
                 }
@@ -223,7 +287,7 @@ namespace CEApi.Controllers
                     throw;
                 }
             }
-            return CreatedAtAction("GetRole", new { id = rolePermission.Id }, rolePermission);
+            return CreatedAtAction("GetRole", new { search = rolePermission.Id }, rolePermission);
         }
 
         // DELETE: api/Roles/Permissions/5
@@ -242,19 +306,62 @@ namespace CEApi.Controllers
             return NoContent();
         }
 
-        private bool RoleExists(string id, string? name = null)
+        private async Task<(IList<RolePermission>, IList<string>)> AddPermissionsToList(IList<RolePermission> currentPermissions, IList<RolePermission> newPermissions)
         {
-            if (name != null)
+            IList<string> invalidPermissions = [];
+
+            foreach (var perm in newPermissions)
             {
-                name = name.ToLower();
+                if (!currentPermissions.Any(r => r.Name.Equals(perm.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Check if the permission exists in the database
+                    var existingPermission = await _context.RolePermissions.FirstOrDefaultAsync(r => r.Name.ToLower() == perm.Name.ToLower());
+                    if (existingPermission != null)
+                    {
+                        currentPermissions.Add(existingPermission);
+                    }
+                    else
+                    {
+                        invalidPermissions.Add($"Permission with the name {perm.Name} does not exist.");
+                    }
+                }
             }
 
-            return _context.UserRoles.Any(e => e.Id == id || (name != null && e.Name == name));
+            return (currentPermissions, invalidPermissions);
         }
 
-        private bool PermissionExists(string id, string? name = null)
+        private (IList<RolePermission>, IList<string>) RemovePermissionsFromList(IList<RolePermission> currentPermissions, IList<RolePermission> permissionsToRemove)
         {
-            return _context.RolePermissions.Any(e => e.Id == id || (name != null && e.Name == name));
+            IList<string> invalidPermissions = [];
+
+            foreach (var perm in permissionsToRemove)
+            {
+                var existingPermission = currentPermissions.FirstOrDefault(r => r.Name.Equals(perm.Name, StringComparison.OrdinalIgnoreCase));
+                if (existingPermission != null)
+                {
+                    currentPermissions.Remove(existingPermission);
+                }
+                else
+                {
+                    invalidPermissions.Add($"The role does not have any permissions with the name {perm.Name} ");
+                }
+            }
+
+            return (currentPermissions, invalidPermissions);
+        }
+
+        private bool RoleExists(string search)
+        {
+            search = search.Trim().ToLower();
+
+            return _context.UserRoles.Any(e => e.Id == search || e.Name.ToLower() == search);
+        }
+
+        private bool PermissionExists(string search)
+        {
+            search = search.Trim().ToLower();
+
+            return _context.RolePermissions.Any(e => e.Id == search || e.Name.ToLower() == search);
         }
     }
 }

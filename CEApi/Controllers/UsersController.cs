@@ -57,19 +57,24 @@ namespace CEApi.Controllers
         {
             if (patchDoc == null)
             {
-                return BadRequest("Invalid patch document.");
+                return BadRequest(new { code = 400, message = "Invalid patch document." });
             }
 
             var user = await _context.UserAccounts.Include(ua => ua.Roles).FirstOrDefaultAsync(ua => ua.userId == id);
 
             if (user == null)
             {
-                return NotFound($"User with ID {id} not found.");
+                return NotFound(new { code = 404, message = $"User with ID {id} not found." } );
             }
 
             var currentRoles = user.Roles ?? []; // since the Patchdoc overwrites the roles, we need to get the user's current roles first
 
             patchDoc.ApplyTo(user);
+
+            if (patchDoc.Operations.Any(op => op.path.Equals("/userId", StringComparison.OrdinalIgnoreCase)))
+            {
+                return BadRequest(new { code = 400, message = "User ID cannot be changed." });
+            }
 
             if (patchDoc.Operations.Any(op => op.path.Equals("/passwordHash", StringComparison.OrdinalIgnoreCase)))
             {
@@ -83,11 +88,11 @@ namespace CEApi.Controllers
 
                 foreach (var op in patchDoc.Operations)
                 {
-                    if (op.op == "add" && op.path == "/roles")
+                    if (op.op.Equals("add", StringComparison.OrdinalIgnoreCase) && op.path.Equals("/roles", StringComparison.OrdinalIgnoreCase))
                     {
                         (validRoles, invalidRoles) = await AddRolesToList(validRoles, user.Roles ?? []);
                     }
-                    else if (op.op == "remove" && op.path == "/roles")
+                    else if (op.op.Equals("remove", StringComparison.OrdinalIgnoreCase) && op.path.Equals("/roles", StringComparison.OrdinalIgnoreCase))
                     {
                         IList<UserRole> rolesToRemove = [];
 
@@ -106,7 +111,7 @@ namespace CEApi.Controllers
 
                         (validRoles, invalidRoles) = RemoveRolesFromList(validRoles, rolesToRemove);
                     }
-                    else if (op.op == "replace" && op.path == "/roles")
+                    else if (op.op.Equals("replace", StringComparison.OrdinalIgnoreCase) && op.path.Equals("/roles", StringComparison.OrdinalIgnoreCase))
                     {
                         (validRoles, invalidRoles) = await AddRolesToList([], user.Roles ?? []);
                     }

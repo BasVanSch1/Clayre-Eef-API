@@ -115,7 +115,7 @@ namespace CEApi.Controllers
                 }
             }
 
-            return CreatedAtAction("GetProductByProductCode", new { id = product.ProductCode }, product);
+            return CreatedAtAction("GetProductByProductCode", new { search = product.ProductCode }, product);
         }
 
         // DELETE: api/Products/5

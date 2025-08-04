@@ -99,7 +99,7 @@ namespace CEApi.Controllers
                 }
             }
 
-            return CreatedAtAction(nameof(GetStatistics), new { id = statistics.Id }, statistics);
+            return CreatedAtAction(nameof(GetStatistics), new { search = statistics.Id }, statistics);
         }
 
         // DELETE: /api/Statistics/{id}
