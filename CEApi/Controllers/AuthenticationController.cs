@@ -28,7 +28,8 @@ namespace CEApi.Controllers
             loginData.userName = loginData.userName.ToLower().Trim();
 
             var existingUser = await _context.UserAccounts
-            .FirstOrDefaultAsync(u => u.userName.ToLower() == loginData.userName);
+                .Include(ua => ua.Roles)
+                .FirstOrDefaultAsync(u => u.userName.ToLower() == loginData.userName);
 
             if (existingUser == null)
             {

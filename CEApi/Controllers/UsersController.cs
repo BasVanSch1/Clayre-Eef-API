@@ -244,9 +244,9 @@ namespace CEApi.Controllers
             var permissions = userAccount.Roles?
                 .SelectMany(r => r.Permissions!)
                 .Distinct()
-                .ToList() ?? [];
+                .ToList();
 
-            return Ok(permissions);
+            return Ok(new { permissions = permissions });
         }
 
         private async Task<(IList<UserRole>, IList<string>)> AddRolesToList(IList<UserRole> currentRoles, IList<UserRole> newRoles)

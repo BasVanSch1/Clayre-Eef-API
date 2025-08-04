@@ -32,13 +32,15 @@ namespace CEApi.Controllers
                 .ToListAsync();
         }
 
-        // GET: api/Roles/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<UserRole>> GetRole(string id)
+        // GET: api/Roles/{search}
+        [HttpGet("{search}")]
+        public async Task<ActionResult<UserRole>> GetRole(string search)
         {
+            search = search.Trim().ToLower();
+
             var userRole = await _context.UserRoles
                 .Include(r => r.Permissions)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == search || r.Name.ToLower() == search);
 
             if (userRole == null)
             {
@@ -46,21 +48,6 @@ namespace CEApi.Controllers
             }
 
             return userRole;
-        }
-        // GET: api/Roles/ByName/name
-        [HttpGet("ByName/{name}")]
-        public async Task<IActionResult> GetRoleByName(string name)
-        {
-            var userRole = await _context.UserRoles
-                .Include(r => r.Permissions)
-                .FirstOrDefaultAsync(r => r.Name == name);
-
-            if (userRole == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(userRole);
         }
 
         // PUT: api/Roles/5
@@ -195,22 +182,11 @@ namespace CEApi.Controllers
             return Ok(permissions);
         }
 
-        [HttpGet("Permissions/{id}")]
-        public async Task<IActionResult> GetPermission(string id)
+        [HttpGet("Permissions/{search}")]
+        public async Task<IActionResult> GetPermission(string search)
         {
-            var rolePermission = await _context.RolePermissions.FindAsync(id);
-            if (rolePermission == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(rolePermission);
-        }
-
-        [HttpGet("Permissions/ByName/{name}")]
-        public async Task<IActionResult> GetPermissionByName(string name)
-        {
-            var rolePermission = await _context.RolePermissions.FirstOrDefaultAsync(p => p.Name == name);
+            search = search.Trim().ToLower();
+            var rolePermission = await _context.RolePermissions.FirstOrDefaultAsync(perm => perm.Id == search || perm.Name.ToLower() == search);
             if (rolePermission == null)
             {
                 return NotFound();

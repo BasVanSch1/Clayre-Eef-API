@@ -3,6 +3,7 @@ using CEApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CEApi.Migrations
 {
     [DbContext(typeof(MsSqlDatabaseContext))]
-    partial class MsSqlDatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20250804123509_Statistics")]
+    partial class Statistics
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,7 +48,7 @@ namespace CEApi.Migrations
 
                     b.HasKey("ProductCode");
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("Products");
                 });
 
             modelBuilder.Entity("CEApi.Models.RolePermission", b =>
@@ -65,7 +68,7 @@ namespace CEApi.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("RolePermissions", (string)null);
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("CEApi.Models.Statistics", b =>
@@ -88,7 +91,7 @@ namespace CEApi.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Statistics", (string)null);
+                    b.ToTable("Statistics");
                 });
 
             modelBuilder.Entity("CEApi.Models.UserAccount", b =>
@@ -119,7 +122,7 @@ namespace CEApi.Migrations
                     b.HasIndex("userName")
                         .IsUnique();
 
-                    b.ToTable("UserAccounts", (string)null);
+                    b.ToTable("UserAccounts");
                 });
 
             modelBuilder.Entity("CEApi.Models.UserRole", b =>
@@ -139,7 +142,7 @@ namespace CEApi.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("UserRoles", (string)null);
+                    b.ToTable("UserRoles");
                 });
 
             modelBuilder.Entity("RolePermissionUserRole", b =>
@@ -154,7 +157,7 @@ namespace CEApi.Migrations
 
                     b.HasIndex("UserRoleId");
 
-                    b.ToTable("RolePermissionUserRole", (string)null);
+                    b.ToTable("RolePermissionUserRole");
                 });
 
             modelBuilder.Entity("UserAccountUserRole", b =>
@@ -169,7 +172,7 @@ namespace CEApi.Migrations
 
                     b.HasIndex("UserAccountuserId");
 
-                    b.ToTable("UserAccountUserRole", (string)null);
+                    b.ToTable("UserAccountUserRole");
                 });
 
             modelBuilder.Entity("RolePermissionUserRole", b =>

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CEApi.Data;
 using CEApi.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CEApi.Controllers
 {
@@ -28,28 +29,34 @@ namespace CEApi.Controllers
             return await _context.Products.ToListAsync();
         }
 
-        // GET: api/Products/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProductByProductCode(string id)
+        // GET: api/Products/{search}
+        [HttpGet("{search}")]
+        public async Task<ActionResult<Product>> GetProduct(string search)
         {
-            var product = await _context.Products.FindAsync(id);
+            search = search.Trim().ToLower();
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode.ToLower() == search || p.EanCode == search);
 
             if (product == null)
             {
                 return NotFound();
             }
 
-            return product;
-        }
-
-        // GET: api/Products/EAN/{ean}
-        [HttpGet("EAN/{ean}")]
-        public async Task<ActionResult<Product>> GetProductByEan(string ean)
-        {
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.EanCode == ean);
-            if (product == null)
+            var statistics = await _context.Statistics.FirstAsync();
+            if (statistics != null)
             {
-                return NotFound();
+                if (search.Equals(product.ProductCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    statistics.LookupsByCode++;
+                } else
+                {
+                    statistics.LookupsByEAN++;
+                }
+
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                Console.Error.WriteLine("GetProductByProductCode: Statistics not found, unable to increment statistics.");
             }
 
             return product;
@@ -108,7 +115,7 @@ namespace CEApi.Controllers
                 }
             }
 
-            return CreatedAtAction("GetProduct", new { id = product.ProductCode }, product);
+            return CreatedAtAction("GetProductByProductCode", new { id = product.ProductCode }, product);
         }
 
         // DELETE: api/Products/5

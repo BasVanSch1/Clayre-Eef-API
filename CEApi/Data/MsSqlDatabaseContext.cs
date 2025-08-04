@@ -9,6 +9,7 @@ namespace CEApi.Data
         public DbSet<UserAccount> UserAccounts { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<Statistics> Statistics { get; set; }
 
         public MsSqlDatabaseContext(DbContextOptions<MsSqlDatabaseContext> options)
             : base(options)
