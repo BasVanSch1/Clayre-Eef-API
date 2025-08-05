@@ -31,7 +31,7 @@ namespace CEApi.Controllers
 
         // GET: api/Products/{search}
         [HttpGet("{search}")]
-        public async Task<ActionResult<Product>> GetProduct(string search)
+        public async Task<ActionResult<Product>> GetProduct(string search, [FromHeader] string? statistics)
         {
             search = search.Trim().ToLower();
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode.ToLower() == search || p.EanCode == search);
@@ -41,22 +41,30 @@ namespace CEApi.Controllers
                 return NotFound();
             }
 
-            var statistics = await _context.Statistics.FirstAsync();
             if (statistics != null)
             {
-                if (search.Equals(product.ProductCode, StringComparison.OrdinalIgnoreCase))
-                {
-                    statistics.LookupsByCode++;
-                } else
-                {
-                    statistics.LookupsByEAN++;
-                }
+                var statsStr = statistics?.Trim().ToLower().Split(',').ToList();
 
-                await _context.SaveChangesAsync();
-            }
-            else
-            {
-                Console.Error.WriteLine("GetProductByProductCode: Statistics not found, unable to increment statistics.");
+                var stats = await _context.Statistics.Where(s => statsStr!.Contains(s.Name.ToLower())).ToListAsync();
+                if (stats != null)
+                {
+                    foreach (var stat in stats)
+                    {
+                        if (search.Equals(product.ProductCode, StringComparison.OrdinalIgnoreCase))
+                        {
+                            stat.LookupsByCode++;
+                        } else
+                        {
+                            stat.LookupsByEAN++;
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    Console.Error.WriteLine("GetProductByProductCode: Statistics not found, unable to increment statistics.");
+                }
             }
 
             return product;

@@ -67,6 +67,7 @@ namespace CEApi.Controllers
                 return NotFound(new { code = 404, message = $"User with ID {id} not found." } );
             }
 
+            var currentUsername = user.userName;
             var currentRoles = user.Roles ?? []; // since the Patchdoc overwrites the roles, we need to get the user's current roles first
 
             patchDoc.ApplyTo(user);
@@ -79,6 +80,18 @@ namespace CEApi.Controllers
             if (patchDoc.Operations.Any(op => op.path.Equals("/passwordHash", StringComparison.OrdinalIgnoreCase)))
             {
                 user.passwordHash = BCrypt.Net.BCrypt.HashPassword(user.passwordHash);
+            }
+
+            if (patchDoc.Operations.Any(op => op.path.Equals("/userName", StringComparison.OrdinalIgnoreCase)))
+            {
+                var stats = await _context.Statistics.FirstOrDefaultAsync(s => s.Name.ToLower() == currentUsername.ToLower());
+                if (stats == null)
+                {
+                    Console.Error.WriteLine($"Failed to find statistics while changing username for userId: {user.userId} ");
+                } else
+                {
+                    stats.Name = user.userName;
+                }
             }
 
             if (patchDoc.Operations.Any(op => op.path.Equals("/roles", StringComparison.OrdinalIgnoreCase)))
@@ -203,17 +216,25 @@ namespace CEApi.Controllers
             userAccount.passwordHash = BCrypt.Net.BCrypt.HashPassword(userAccount.passwordHash);
             userAccount.displayName ??= userAccount.userName;
 
+            var userStats = new Statistics
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = userAccount.userName
+            };
+
             _context.UserAccounts.Add(userAccount);
+            _context.Statistics.Add(userStats);
             try
             {
                 await _context.SaveChangesAsync();
             }
             catch
             {
-                return StatusCode(500, "An error occurred while updating the user account.");
+                return StatusCode(500, "An error occurred while creating a user account.");
             }
 
             userAccount.passwordHash = null;
+
             return CreatedAtAction("GetUserAccount", new { id = userAccount.userId }, userAccount);
         }
 
@@ -228,6 +249,15 @@ namespace CEApi.Controllers
             }
 
             _context.UserAccounts.Remove(userAccount);
+
+            var userStats = await _context.Statistics.FirstOrDefaultAsync(s => s.Name == userAccount.userName);
+            if (userStats == null)
+            {
+                await _context.SaveChangesAsync();
+                return Ok(new { code = 200, message = $"Failed to delete statistics: no statistics found for username: {userAccount.userName}" });
+            }
+
+            _context.Statistics.Remove(userStats);
             await _context.SaveChangesAsync();
 
             return NoContent();
