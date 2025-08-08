@@ -213,6 +213,7 @@ namespace CEApi.Controllers
             }
 
             userAccount.userId = Guid.NewGuid().ToString();
+            userAccount.userName = userAccount.userName.ToLower().Trim();
             userAccount.passwordHash = BCrypt.Net.BCrypt.HashPassword(userAccount.passwordHash);
             userAccount.displayName ??= userAccount.userName;
 
